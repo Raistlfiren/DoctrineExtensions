@@ -286,6 +286,13 @@ class UploadableListener extends MappedEventSubscriber
             } else {
                 $path     = $this->getPath($meta, $config, $object);
                 $fileName = $this->getFileNameFieldValue($meta, $config, $object);
+
+                //Added these lines in order to get the changes...
+                $changesets = $uow->getEntityChangeSet($object);
+                if (array_key_exists($config['fileNameField'], $changesets)) {
+                    $fileName = $changesets[$config['fileNameField']][0];
+                }
+
                 $this->pendingFileRemovals[] = $path.DIRECTORY_SEPARATOR.$fileName;
             }
         }
@@ -563,14 +570,14 @@ class UploadableListener extends MappedEventSubscriber
 
         if (is_file($info['filePath'])) {
             if ($overwrite) {
-                
+
                 $k = array_search($info['filePath'], $this->pendingFileRemovals);
-                
+
                 if ($k !== false)
                 {
                     unset($this->pendingFileRemovals[$k]);
                 }
-                
+
                 $this->removeFile($info['filePath']);
             } elseif ($appendNumber) {
                 $counter = 1;

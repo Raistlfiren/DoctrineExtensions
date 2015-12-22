@@ -19,6 +19,7 @@ use Uploadable\Fixture\Entity\FileWithDisallowedTypes;
 use Gedmo\Uploadable\Stub\UploadableListenerStub;
 use Gedmo\Uploadable\Stub\MimeTypeGuesserStub;
 use Gedmo\Uploadable\FileInfo\FileInfoArray;
+use Uploadable\Fixture\Entity\Organization;
 
 /**
  * These are tests for Uploadable behavior
@@ -31,6 +32,7 @@ use Gedmo\Uploadable\FileInfo\FileInfoArray;
 class UploadableEntityTest extends BaseTestCaseORM
 {
     const IMAGE_CLASS = 'Uploadable\Fixture\Entity\Image';
+    const IMAGE_ORGANIZATION = 'Uploadable\Fixture\Entity\Organization';
     const ARTICLE_CLASS = 'Uploadable\Fixture\Entity\Article';
     const FILE_CLASS = 'Uploadable\Fixture\Entity\File';
     const FILE_APPEND_NUMBER_CLASS = 'Uploadable\Fixture\Entity\FileAppendNumber';
@@ -211,6 +213,72 @@ class UploadableEntityTest extends BaseTestCaseORM
         $lastFile = $image2->getFilePath();
 
         $this->assertPathEquals($image2->getPath($this->destinationTestDir).'/'.$fileInfo['name'], $image2->getFilePath());
+        $this->assertTrue(is_file($lastFile));
+
+        // First file should be removed on update
+        $this->assertFalse(is_file($firstFile));
+
+        // REMOVAL of an Uploadable Entity
+        $this->em->remove($image2);
+        $this->em->flush();
+
+        $this->assertFalse(is_file($lastFile));
+    }
+
+    public function testUploadableEntityWithCompositePathAndNoAnnotationPath()
+    {
+        $path = '../../temp/uploadable';
+
+        // We set the default path on the listener
+        $this->listener->setDefaultPath($path);
+
+        // If there is an uploaded file, we process it
+        $fileInfo = $this->generateUploadedFile();
+
+        $image2 = new Organization();
+        $image2->setTitle('456');
+        $this->listener->addEntityFileInfo($image2, $fileInfo);
+
+        $this->em->persist($image2);
+        $this->em->flush();
+
+        $this->em->refresh($image2);
+
+        // We need to set this again because of the recent refresh
+        $firstFile = $path . DIRECTORY_SEPARATOR . $image2->getLogo();
+
+        //$this->assertPathEquals($image2->getPath($this->destinationTestDir).'/'.$fileInfo['name'], $image2->getFilePath());
+        $this->assertTrue(is_file($firstFile));
+        //$this->assertEquals($fileInfo['size'], $image2->getSize());
+        //$this->assertEquals($fileInfo['type'], $image2->getMime());
+
+        // UPDATE of an Uploadable Entity
+
+        // We change the "uploaded" file
+        $fileInfo['tmp_name'] = $this->testFile2;
+        $fileInfo['name'] = $this->testFilename2;
+
+        //Change image2 title
+        $image2->setTitle('123');
+
+        //Call Symfony handleRequest method()
+        //$form->handleRequest($request)
+        //Check if form is valid
+        //Now new data fills up the entity
+
+        //So image2 now equals everything in the new object
+        $image2->setLogo(new FileInfoArray($fileInfo));
+
+        // We use a FileInfoInterface instance here
+        $this->listener->addEntityFileInfo($image2, $image2->getLogo());
+
+        $this->em->flush();
+
+        $this->em->refresh($image2);
+
+        $lastFile = $path . DIRECTORY_SEPARATOR . $image2->getLogo();
+
+        //$this->assertPathEquals($image2->getPath($this->destinationTestDir).'/'.$fileInfo['name'], $image2->getFilePath());
         $this->assertTrue(is_file($lastFile));
 
         // First file should be removed on update
@@ -735,6 +803,7 @@ class UploadableEntityTest extends BaseTestCaseORM
     {
         return array(
             self::IMAGE_CLASS,
+            self::IMAGE_ORGANIZATION,
             self::ARTICLE_CLASS,
             self::FILE_CLASS,
             self::FILE_WITHOUT_PATH_CLASS,
